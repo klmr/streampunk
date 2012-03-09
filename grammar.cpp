@@ -33,6 +33,7 @@ struct stream_lang_impl : qi::grammar<Iterator, skipper> {
 
     rule_t expression;
     rule_t call_expression;
+    rule_t conditional_expression;
     rule_t logical_or_expression;
     rule_t logical_and_expression;
     rule_t bit_or_expression;
@@ -91,8 +92,17 @@ struct stream_lang_impl : qi::grammar<Iterator, skipper> {
         expression =
             call_expression % ("|>" >> -qi::eol);
 
+        // FIXME Call is optional, placement also allows `if`.
+        // Introducing an alternative is not a fix.
+        // FIXME Ambiguity between call `a +b` and binary expression `a + b`
         call_expression =
             qualified >> *logical_or_expression;
+
+        conditional_expression =
+               ("if" > call_expression >
+                "then" > call_expression >
+                "else" > call_expression)
+            |   logical_or_expression;
 
         // We use the sequence (>>) instead of expect (>) in the following
         // because otherwise the lookahead may bail out in legitimate parses;
@@ -182,6 +192,7 @@ struct stream_lang_impl : qi::grammar<Iterator, skipper> {
         qualified.name("qualified");
         expression.name("expression");
         call_expression.name("call_expression");
+        conditional_expression.name("conditional_expression");
         logical_or_expression.name("logical_or_expression");
         logical_and_expression.name("logical_and_expression");
         bit_or_expression.name("bit_or_expression");
