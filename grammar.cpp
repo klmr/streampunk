@@ -1,6 +1,8 @@
 #include <iostream>
 #include <string>
 
+#define BOOST_SPIRIT_DEBUG
+
 #include <boost/spirit/include/qi.hpp>
 #include <boost/fusion/include/std_pair.hpp>
 #include <boost/lambda/lambda.hpp>
@@ -11,6 +13,22 @@ namespace qi = boost::spirit::qi;
 
 namespace stream {
 
+// TODO Change grammar of function calls to require parentheses, otherwise the
+// following CANNOT be disambiguated:
+//
+//  function f = 23
+//  function g = 42
+//  let a = [f, g]
+//  let x = a[1]
+//
+// Now, is x == g or did we intend to invoke the function, getting x == [1..5]?
+// DOESN'T MATTER! Except (maybe) to deduce static type of expression?
+//
+// f :: -> num
+// g :: -> num
+// a :: [(-> num)]
+// x :: (-> num) | num
+
 template <typename Iterator>
 struct stream_lang_impl : qi::grammar<Iterator, skipper> {
     typedef skipper space_type;
@@ -19,6 +37,7 @@ struct stream_lang_impl : qi::grammar<Iterator, skipper> {
     typedef qi::rule<Iterator, space_type> rule_t;
 
     RULE(std::string()) id;
+    RULE(std::string()) variable;
     RULE(double()) number;
     RULE(std::string()) string;
     rule_t source_unit;
@@ -31,6 +50,7 @@ struct stream_lang_impl : qi::grammar<Iterator, skipper> {
     rule_t eol;
     rule_t qualified;
 
+    rule_t sequence_expression;
     rule_t expression;
     rule_t call_expression;
     rule_t conditional_expression;
@@ -61,6 +81,9 @@ struct stream_lang_impl : qi::grammar<Iterator, skipper> {
         number = qi::double_;
         string = qi::lexeme['"' >> *(~qi::lit('"') | "\\\"") >> '"'];
 
+        // TODO Define variable to be NOT keyword
+        variable = id;
+
         source_unit =
             -module >> *statement;
 
@@ -68,41 +91,45 @@ struct stream_lang_impl : qi::grammar<Iterator, skipper> {
             "module" > qualified > eol;
 
         statement =
-            (import | function | let | expression) > eol;
+            (import | function | let | sequence_expression) > eol;
 
         import =
             "import" > qualified > -("as" > id);
 
         qualified =
-            id % '.';
+            variable % '.';
 
+        // TODO If functions have at least one argument, does it make sense to
+        // differentiate between `function` & `let`?
+        // NOTE Yes, if functions may have side-effects. How to handle this?
         function =
-            "function" > id > params > "=" > expression;
+            "function" > variable > params > "=" > sequence_expression;
 
         params =
-            *id;
+            +variable;
 
         let =
-            "let" > id > "=" > expression;
+            "let" > variable > "=" > sequence_expression;
 
         // The following nesting hierarchy of the rules reflects the operator
         // precedence of the expression types. The sequence operator (pipe)
         // has the lowest precedence.
 
-        expression =
-            call_expression % ("|>" >> -qi::eol);
+        sequence_expression =
+            expression % ("|>" >> -qi::eol);
 
-        // FIXME Call is optional, placement also allows `if`.
-        // Introducing an alternative is not a fix.
-        // FIXME Ambiguity between call `a +b` and binary expression `a + b`
-        call_expression =
-            qualified >> *logical_or_expression;
+        expression =
+            conditional_expression |
+            call_expression |
+            logical_or_expression;
 
         conditional_expression =
-               ("if" > call_expression >
-                "then" > call_expression >
-                "else" > call_expression)
-            |   logical_or_expression;
+            "if" > expression >
+            "then" > expression >
+            "else" > expression;
+
+        call_expression =
+            qualified >> +expression;
 
         // We use the sequence (>>) instead of expect (>) in the following
         // because otherwise the lookahead may bail out in legitimate parses;
@@ -165,20 +192,22 @@ struct stream_lang_impl : qi::grammar<Iterator, skipper> {
         unary_expression =
             subscript_expression |
             ("not" >> unary_expression) |
-            ('+' >> unary_expression) |
-            ('-' >> unary_expression) |
-            ('~' >> unary_expression);
+            ('~' >> unary_expression) |
+            ('(' >> ( ('+' >> unary_expression) |
+                      ('-' >> unary_expression) |
+                      sequence_expression ) > ')');
 
         subscript_expression =
-            primary_expression >> *('[' > expression > ']');
+            primary_expression >> *('[' > sequence_expression > ']');
 
         primary_expression =
             number |
             string |
-            qualified |
-            ('(' > expression > ')');
+            qualified;
 
+        // Tell me this can't be automated?!
         id.name("id");
+        variable.name("variable");
         number.name("number");
         string.name("string");
         source_unit.name("source_unit");
@@ -190,6 +219,7 @@ struct stream_lang_impl : qi::grammar<Iterator, skipper> {
         let.name("let");
         eol.name("eol");
         qualified.name("qualified");
+        sequence_expression.name("sequence_expression");
         expression.name("expression");
         call_expression.name("call_expression");
         conditional_expression.name("conditional_expression");
@@ -208,6 +238,39 @@ struct stream_lang_impl : qi::grammar<Iterator, skipper> {
         unary_expression.name("unary_expression");
         subscript_expression.name("subscript_expression");
         primary_expression.name("primary_expression");
+
+        BOOST_SPIRIT_DEBUG_NODE(id);
+        BOOST_SPIRIT_DEBUG_NODE(variable);
+        BOOST_SPIRIT_DEBUG_NODE(number);
+        BOOST_SPIRIT_DEBUG_NODE(string);
+        BOOST_SPIRIT_DEBUG_NODE(source_unit);
+        BOOST_SPIRIT_DEBUG_NODE(statement);
+        BOOST_SPIRIT_DEBUG_NODE(module);
+        BOOST_SPIRIT_DEBUG_NODE(import);
+        BOOST_SPIRIT_DEBUG_NODE(function);
+        BOOST_SPIRIT_DEBUG_NODE(params);
+        BOOST_SPIRIT_DEBUG_NODE(let);
+        BOOST_SPIRIT_DEBUG_NODE(eol);
+        BOOST_SPIRIT_DEBUG_NODE(qualified);
+        BOOST_SPIRIT_DEBUG_NODE(sequence_expression);
+        BOOST_SPIRIT_DEBUG_NODE(expression);
+        BOOST_SPIRIT_DEBUG_NODE(call_expression);
+        BOOST_SPIRIT_DEBUG_NODE(conditional_expression);
+        BOOST_SPIRIT_DEBUG_NODE(logical_or_expression);
+        BOOST_SPIRIT_DEBUG_NODE(logical_and_expression);
+        BOOST_SPIRIT_DEBUG_NODE(bit_or_expression);
+        BOOST_SPIRIT_DEBUG_NODE(bit_xor_expression);
+        BOOST_SPIRIT_DEBUG_NODE(bit_and_expression);
+        BOOST_SPIRIT_DEBUG_NODE(equality_expression);
+        BOOST_SPIRIT_DEBUG_NODE(relational_expression);
+        BOOST_SPIRIT_DEBUG_NODE(shift_expression);
+        BOOST_SPIRIT_DEBUG_NODE(addition_expression);
+        BOOST_SPIRIT_DEBUG_NODE(multiplication_expression);
+        BOOST_SPIRIT_DEBUG_NODE(power_expression);
+        BOOST_SPIRIT_DEBUG_NODE(range_expression);
+        BOOST_SPIRIT_DEBUG_NODE(unary_expression);
+        BOOST_SPIRIT_DEBUG_NODE(subscript_expression);
+        BOOST_SPIRIT_DEBUG_NODE(primary_expression);
     }
 };
 
