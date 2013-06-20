@@ -211,4 +211,8 @@ template struct stream_lang<char const*>;
 
 template struct stream_lang<wchar_t const*>;
 
+template struct stream_lang<std::string::const_iterator>;
+
+template struct stream_lang<std::wstring::const_iterator>;
+
 } // namespace stream
