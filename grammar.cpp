@@ -2,54 +2,49 @@
 #include <string>
 
 #include <boost/spirit/include/qi.hpp>
-#include <boost/fusion/include/std_pair.hpp>
-#include <boost/lambda/lambda.hpp>
 
 #include "grammar.hpp"
-
-namespace qi = boost::spirit::qi;
 
 namespace stream {
 
 template <typename Iterator>
-struct stream_lang_impl : qi::grammar<Iterator, skipper> {
-    typedef skipper space_type;
-    // TODO Replace by template alias, once GCC supports it.
-#define RULE(type) qi::rule<Iterator, space_type, type>
-    typedef qi::rule<Iterator, space_type> rule_t;
+struct stream_lang_impl : qi::grammar<Iterator, qi::unused_type(), qi::blank_type> {
+    //
+    template <typename Attr=qi::unused_type, typename... Inherited>
+    using rule_t = qi::rule<Iterator, Attr(Inherited...), qi::blank_type>;
+    //
 
-    RULE(std::string()) id;
-    RULE(double()) number;
-    RULE(std::string()) string;
-    rule_t source_unit;
-    rule_t statement;
-    rule_t module;
-    rule_t import;
-    rule_t function;
-    rule_t params;
-    rule_t let;
-    rule_t eol;
-    rule_t qualified;
+    rule_t<std::string> id;
+    rule_t<double>      number;
+    rule_t<std::string> string;
 
-    rule_t expression;
-    rule_t call_expression;
-    rule_t logical_or_expression;
-    rule_t logical_and_expression;
-    rule_t bit_or_expression;
-    rule_t bit_xor_expression;
-    rule_t bit_and_expression;
-    rule_t equality_expression;
-    rule_t relational_expression;
-    rule_t shift_expression;
-    rule_t addition_expression;
-    rule_t multiplication_expression;
-    rule_t power_expression;
-    rule_t range_expression;
-    rule_t unary_expression;
-    rule_t subscript_expression;
-    rule_t primary_expression;
-
-#undef RULE
+    rule_t<>            source_unit;
+    rule_t<>            statement;
+    rule_t<>            module;
+    rule_t<>            import;
+    rule_t<>            function;
+    rule_t<>            params;
+    rule_t<>            let;
+    rule_t<>            eol;
+    rule_t<>            qualified;
+    
+    rule_t<>            expression;
+    rule_t<>            call_expression;
+    rule_t<>            logical_or_expression;
+    rule_t<>            logical_and_expression;
+    rule_t<>            bit_or_expression;
+    rule_t<>            bit_xor_expression;
+    rule_t<>            bit_and_expression;
+    rule_t<>            equality_expression;
+    rule_t<>            relational_expression;
+    rule_t<>            shift_expression;
+    rule_t<>            addition_expression;
+    rule_t<>            multiplication_expression;
+    rule_t<>            power_expression;
+    rule_t<>            range_expression;
+    rule_t<>            unary_expression;
+    rule_t<>            subscript_expression;
+    rule_t<>            primary_expression;
 
     stream_lang_impl() : stream_lang_impl::base_type(source_unit) {
         // EOL is redefined to be either end of line or end of input.

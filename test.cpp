@@ -6,7 +6,6 @@
 
 #include "grammar.hpp"
 
-namespace qi = boost::spirit::qi;
 using namespace stream;
 using namespace std;
 
@@ -58,7 +57,7 @@ int main() {
 
     cout << "Attempting to parse <<<HEREDOC\n" << message << "HEREDOC;\n";
     try {
-        bool r = qi::phrase_parse(first, last, parser, skipper());
+        bool r = qi::phrase_parse(first, last, parser, qi::blank);
         bool success = r and (first == last);
 
         cout << boolalpha << "r: " << r << ", success: " << success << "\n";
