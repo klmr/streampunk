@@ -47,10 +47,14 @@ struct stream_lang_impl : qi::grammar<Iterator, qi::unused_type(), qi::blank_typ
     rule_t<>            primary_expression;
 
     stream_lang_impl() : stream_lang_impl::base_type(source_unit) {
+        // a quick and dirty distinct keyword parser `kw`: Should be effective,
+        // at least to avoid parsing partial identifiers as keywords
+        static const qi::rule<Iterator, qi::unused_type(const char*)> kw = qi::lit(qi::_r1) >> !qi::alnum;
+
         // EOL is redefined to be either end of line or end of input.
         // This is done to allow the input file to end without a proper line
         // ending (i.e. EOL), in violation of the UNIX definition of a line.
-        eol = +qi::eol || qi::eoi;
+        eol    = +qi::eol || qi::eoi;
         id     = qi::lexeme[qi::alpha >> *qi::alnum];
         number = qi::double_;
         string = qi::lexeme['"' >> *(~qi::lit('"') | "\\\"") > '"'];
@@ -59,25 +63,25 @@ struct stream_lang_impl : qi::grammar<Iterator, qi::unused_type(), qi::blank_typ
             -module >> *statement;
 
         module =
-            "module" > qualified > eol;
+            kw(+"module") > qualified > eol;
 
         statement =
             (import | function | let | expression) > eol;
 
         import =
-            "import" > qualified > -("as" > id);
+            kw(+"import") > qualified > -(kw(+"as") > id);
 
         qualified =
             id % '.';
 
         function =
-            "function" > id > params > "=" > expression;
+            kw(+"function") > id > params > "=" > expression;
 
         params =
             *id;
 
         let =
-            "let" > id > "=" > expression;
+            kw(+"let") > id > "=" > expression;
 
         // The following nesting hierarchy of the rules reflects the operator
         // precedence of the expression types. The sequence operator (pipe)
@@ -96,10 +100,10 @@ struct stream_lang_impl : qi::grammar<Iterator, qi::unused_type(), qi::blank_typ
         // follow without considering the alternatives.
 
         logical_or_expression =
-            logical_and_expression >> *("or" >> logical_and_expression);
+            logical_and_expression >> *(kw(+"or") >> logical_and_expression);
 
         logical_and_expression =
-            bit_or_expression >> *("and" >> bit_or_expression);
+            bit_or_expression >> *(kw(+"and") >> bit_or_expression);
 
         bit_or_expression =
             bit_xor_expression >> *('|' >> bit_xor_expression);
@@ -112,14 +116,14 @@ struct stream_lang_impl : qi::grammar<Iterator, qi::unused_type(), qi::blank_typ
 
         equality_expression =
             relational_expression
-            >> *(   ('=' >> relational_expression)
+            >> *(   ('='  >> relational_expression)
                 |   ("!=" >> relational_expression)
                 );
 
         relational_expression =
             shift_expression
-            >> *(   ('<' >> shift_expression)
-                |   ('>' >> shift_expression)
+            >> *(   ('<'  >> shift_expression)
+                |   ('>'  >> shift_expression)
                 |   ("<=" >> shift_expression)
                 |   (">=" >> shift_expression)
                 );
@@ -138,10 +142,10 @@ struct stream_lang_impl : qi::grammar<Iterator, qi::unused_type(), qi::blank_typ
 
         multiplication_expression =
             power_expression
-            >> *(   ('*' >> power_expression)
-                |   ('/' >> power_expression)
+            >> *(   ('*'  >> power_expression)
+                |   ('/'  >> power_expression)
                 |   ("//" >> power_expression)
-                |   ('%' >> power_expression)
+                |   ('%'  >> power_expression)
                 );
 
         power_expression =
@@ -149,10 +153,10 @@ struct stream_lang_impl : qi::grammar<Iterator, qi::unused_type(), qi::blank_typ
 
         unary_expression =
             subscript_expression |
-            ("not" >> unary_expression) |
-            ('+' >> unary_expression) |
-            ('-' >> unary_expression) |
-            ('~' >> unary_expression);
+            (kw(+"not") >> unary_expression) |
+            ('+'        >> unary_expression) |
+            ('-'        >> unary_expression) |
+            ('~'        >> unary_expression);
 
         subscript_expression =
             primary_expression >> *('[' > expression > ']');
