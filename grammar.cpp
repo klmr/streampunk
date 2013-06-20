@@ -51,9 +51,9 @@ struct stream_lang_impl : qi::grammar<Iterator, qi::unused_type(), qi::blank_typ
         // This is done to allow the input file to end without a proper line
         // ending (i.e. EOL), in violation of the UNIX definition of a line.
         eol = +qi::eol || qi::eoi;
-        id = qi::lexeme[qi::char_("a-zA-Z") >> *qi::char_("a-zA-Z0-9")];
+        id     = qi::lexeme[qi::alpha >> *qi::alnum];
         number = qi::double_;
-        string = qi::lexeme['"' >> *(~qi::lit('"') | "\\\"") >> '"'];
+        string = qi::lexeme['"' >> *(~qi::lit('"') | "\\\"") > '"'];
 
         source_unit =
             -module >> *statement;
@@ -163,35 +163,19 @@ struct stream_lang_impl : qi::grammar<Iterator, qi::unused_type(), qi::blank_typ
             qualified |
             ('(' > expression > ')');
 
-        id.name("id");
-        number.name("number");
-        string.name("string");
-        source_unit.name("source_unit");
-        statement.name("statement");
-        module.name("module");
-        import.name("import");
-        function.name("function");
-        params.name("params");
-        let.name("let");
-        eol.name("eol");
-        qualified.name("qualified");
-        expression.name("expression");
-        call_expression.name("call_expression");
-        logical_or_expression.name("logical_or_expression");
-        logical_and_expression.name("logical_and_expression");
-        bit_or_expression.name("bit_or_expression");
-        bit_xor_expression.name("bit_xor_expression");
-        bit_and_expression.name("bit_and_expression");
-        equality_expression.name("equality_expression");
-        relational_expression.name("relational_expression");
-        shift_expression.name("shift_expression");
-        addition_expression.name("addition_expression");
-        multiplication_expression.name("multiplication_expression");
-        power_expression.name("power_expression");
-        range_expression.name("range_expression");
-        unary_expression.name("unary_expression");
-        subscript_expression.name("subscript_expression");
-        primary_expression.name("primary_expression");
+        BOOST_SPIRIT_DEBUG_NODES(
+            (id) (number) (string)
+
+            (source_unit) (statement) (module) (import) (function) (params) (let) (eol) (qualified)
+
+            (expression)
+            (call_expression)
+            (logical_or_expression) (logical_and_expression)
+            (bit_or_expression) (bit_xor_expression) (bit_and_expression)
+            (equality_expression) (relational_expression)
+            (shift_expression) (addition_expression) (multiplication_expression) (power_expression)
+            (range_expression) (unary_expression) (subscript_expression) (primary_expression)
+        )
     }
 };
 
