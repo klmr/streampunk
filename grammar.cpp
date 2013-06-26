@@ -31,6 +31,7 @@ struct stream_lang_impl : qi::grammar<Iterator, qi::unused_type(), qi::blank_typ
     using rule_t = qi::rule<Iterator, Attr(Inherited...), qi::blank_type>;
 
     rule_t<std::string> id;
+    rule_t<std::string> variable;
     rule_t<double>      number;
     rule_t<std::string> string;
 
