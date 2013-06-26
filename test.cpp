@@ -7,7 +7,6 @@
 #include "grammar.hpp"
 
 using namespace stream;
-using namespace std;
 
 struct printer {
     typedef boost::spirit::utf8_string string;
@@ -32,7 +31,9 @@ void print_info(boost::spirit::info const& what) {
 }
 
 int main() {
-    const std::string message =
+    using std::cout;
+
+    std::string const message =
         "module test\n"
         "\n"
         "import io\n"
@@ -50,8 +51,8 @@ int main() {
         "io.print \"Hello world\"\n"
         ;
 
-    auto first = message.begin(),
-         last  = message.end();
+    auto first = message.begin();
+    auto last = message.end();
 
     cout << "Attempting to parse <<<HEREDOC\n" << message << "HEREDOC;\n";
 
@@ -59,7 +60,7 @@ int main() {
         bool r = stream::parse(first, last);
         bool success = r and (first == last);
 
-        cout << boolalpha << "r: " << r << ", success: " << success << "\n";
+        cout << std::boolalpha << "r: " << r << ", success: " << success << "\n";
         cout << "Remaining: \"" << std::string(first,last) << "\"\n";
     }
     catch (qi::expectation_failure<char const*> const& error) {

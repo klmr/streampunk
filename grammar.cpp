@@ -9,10 +9,8 @@ namespace stream {
 
 template <typename Iterator>
 struct stream_lang_impl : qi::grammar<Iterator, qi::unused_type(), qi::blank_type> {
-    //
-    template <typename Attr=qi::unused_type, typename... Inherited>
+    template <typename Attr = qi::unused_type, typename... Inherited>
     using rule_t = qi::rule<Iterator, Attr(Inherited...), qi::blank_type>;
-    //
 
     rule_t<std::string> id;
     rule_t<double>      number;

@@ -4,6 +4,6 @@ CXXFLAGS=-std=c++0x -pedantic -isystem$(BOOST) -pedantic -Wall -Wextra -Werror -
 
 %.o: %.cpp *.hpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
-	
+
 test: test.o grammar.o
 	$(CXX) $(CXXFLAGS) -o $@ $^
