@@ -30,6 +30,9 @@ struct stream_lang_impl : qi::grammar<Iterator, qi::unused_type(), qi::blank_typ
     template <typename Attr = qi::unused_type, typename... Inherited>
     using rule_t = qi::rule<Iterator, Attr(Inherited...), qi::blank_type>;
 
+    qi::rule<Iterator>  kw_module, kw_import, kw_as, kw_let, kw_function, kw_if,
+                        kw_then, kw_else, kw_and, kw_or, kw_not;
+
     rule_t<std::string> id;
     rule_t<std::string> variable;
     rule_t<double>      number;
@@ -65,10 +68,26 @@ struct stream_lang_impl : qi::grammar<Iterator, qi::unused_type(), qi::blank_typ
     rule_t<>            subscript_expression;
     rule_t<>            primary_expression;
 
-    stream_lang_impl() : stream_lang_impl::base_type(source_unit) {
-        // a quick and dirty distinct keyword parser `kw`: Should be effective,
-        // at least to avoid parsing partial identifiers as keywords
-        static const qi::rule<Iterator, qi::unused_type(const char*)> kw = qi::lit(qi::_r1) >> !qi::alnum;
+    // Accepts arrays instead of pointers to ensure that only string literals
+    // are passed -- otherwise we would potentially save a stale pointer.
+    template <std::size_t N>
+    static auto kw(char const (&keyword)[N]) -> qi::rule<Iterator> {
+        // qi::lit has problems with char arrays, use pointer instead.
+        return qi::lit(+keyword) >> !qi::alnum;
+    }
+
+    stream_lang_impl() : stream_lang_impl::base_type{source_unit} {
+        kw_module = kw("module");
+        kw_import = kw("import");
+        kw_as = kw("as");
+        kw_let = kw("let");
+        kw_function = kw("function");
+        kw_if = kw("if");
+        kw_then = kw("then");
+        kw_else = kw("else");
+        kw_and = kw("and");
+        kw_or = kw("or");
+        kw_not = kw("not");
 
         // EOL is redefined to be either end of line or end of input.
         // This is done to allow the input file to end without a proper line
@@ -85,13 +104,13 @@ struct stream_lang_impl : qi::grammar<Iterator, qi::unused_type(), qi::blank_typ
             -module >> *statement;
 
         module =
-            kw(+"module") > qualified > eol;
+            kw_module > qualified > eol;
 
         statement =
             (import | function | let | sequence_expression) > eol;
 
         import =
-            kw(+"import") > qualified > -(kw(+"as") > id);
+            kw_import > qualified > -(kw_as > id);
 
         qualified =
             variable % '.';
@@ -100,13 +119,13 @@ struct stream_lang_impl : qi::grammar<Iterator, qi::unused_type(), qi::blank_typ
         // differentiate between `function` & `let`?
         // NOTE Yes, if functions may have side-effects. How to handle this?
         function =
-            kw(+"function") > variable > params > "=" > sequence_expression;
+            kw_function > variable > params > "=" > sequence_expression;
 
         params =
             +variable;
 
         let =
-            kw(+"let") > variable > "=" > sequence_expression;
+            kw_let > variable > "=" > sequence_expression;
 
         // The following nesting hierarchy of the rules reflects the operator
         // precedence of the expression types. The sequence operator (pipe)
@@ -121,9 +140,9 @@ struct stream_lang_impl : qi::grammar<Iterator, qi::unused_type(), qi::blank_typ
             logical_or_expression;
 
         conditional_expression =
-            kw(+"if") > expression >
-            kw(+"then") > expression >
-            kw(+"else") > expression;
+            kw_if   > expression >
+            kw_then > expression >
+            kw_else > expression;
 
         call_expression =
             qualified >> +expression;
@@ -135,10 +154,10 @@ struct stream_lang_impl : qi::grammar<Iterator, qi::unused_type(), qi::blank_typ
         // follow without considering the alternatives.
 
         logical_or_expression =
-            logical_and_expression >> *(kw(+"or") >> logical_and_expression);
+            logical_and_expression >> *(kw_or >> logical_and_expression);
 
         logical_and_expression =
-            bit_or_expression >> *(kw(+"and") >> bit_or_expression);
+            bit_or_expression >> *(kw_and >> bit_or_expression);
 
         bit_or_expression =
             bit_xor_expression >> *('|' >> bit_xor_expression);
@@ -188,11 +207,11 @@ struct stream_lang_impl : qi::grammar<Iterator, qi::unused_type(), qi::blank_typ
 
         unary_expression =
             subscript_expression |
-            (kw(+"not") >> unary_expression) |
-            ('~'        >> unary_expression) |
-            ('('        >> ( ('+' >> unary_expression) |
-                             ('-' >> unary_expression) |
-                             sequence_expression ) > ')');
+            (kw_not >> unary_expression) |
+            ('~'    >> unary_expression) |
+            ('('    >> ( ('+' >> unary_expression) |
+                         ('-' >> unary_expression) |
+                         sequence_expression ) > ')');
 
         subscript_expression =
             primary_expression >> *('[' > sequence_expression > ']');
@@ -207,6 +226,9 @@ struct stream_lang_impl : qi::grammar<Iterator, qi::unused_type(), qi::blank_typ
             (variable)
             (number)
             (string)
+
+            (kw_module) (kw_import) (kw_as) (kw_let) (kw_function) (kw_if)
+            (kw_then) (kw_else) (kw_and) (kw_or) (kw_not)
 
             (source_unit)
             (statement)
