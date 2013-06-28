@@ -4,6 +4,7 @@ LD=$(CXX)
 CC=$(CXX)
 CXXFLAGS+=-std=c++0x -isystem$(BOOST) \
 		  -pedantic -Wall -Wextra -Werror \
+		  -fvisibility=hidden -fvisibility-inlines-hidden \
 		  -O0
 
 %.o: %.cpp *.hpp
